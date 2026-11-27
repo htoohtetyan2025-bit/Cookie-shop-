@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cookie Shop</title>
+<style>
+body{font-family:Arial;background:#fff4e6;text-align:center;padding:20px}
+.card{background:white;padding:20px;border-radius:15px;max-width:400px;margin:auto}
+input,select,button{width:100%;padding:12px;margin:8px 0;box-sizing:border-box}
+button{background:#9b542b;color:white;border:0;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>🍪 Cookie Shop</h1>
+<h2>Cookie</h2>
+<p>Price: 5,000 Ks</p>
+<p>Cooking: 5 seconds</p>
+<p>Delivery: 10–15 minutes</p>
+
+<input id="customer" placeholder="Customer Name">
+<select id="city">
+<option>Yangon</option>
+<option>Myingyan</option>
+</select>
+<input id="address" placeholder="Delivery Address">
+<select id="payment">
+<option>Cash</option>
+<option>Wave Pay</option>
+<option>KBZ Pay</option>
+</select>
+<button onclick="orderCookie()">Order Now</button>
+<p id="result"></p>
+
+<hr>
+<h3>Admin Login</h3>
+<input id="email" type="email" placeholder="Admin Email">
+<input id="password" type="password" placeholder="Admin Password">
+<button onclick="adminLogin()">Login</button>
+<div id="admin"></div>
+</div>
+
+<script type="module">
+import {initializeApp} from
+"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,signInAnonymously,signInWithEmailAndPassword}
+from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,collection,addDoc,getDocs,updateDoc,doc}
+from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB4jOmIYQpWA6NH-JNkmc6ZLSl1nYvR5BA",
+  authDomain: "cookie-shop-adfc2.firebaseapp.com",
+  projectId: "cookie-shop-adfc2",
+  storageBucket: "cookie-shop-adfc2.firebasestorage.app",
+  messagingSenderId: "499113828747",
+  appId: "1:499113828747:web:e26c88ded5a4ceea0a0f8e"
+};
+
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+signInAnonymously(auth).catch(e=>console.log(e));
+
+window.orderCookie=async()=>{
+ try{
+  if(!auth.currentUser) throw new Error("Please wait and try again");
+  const name=document.getElementById("customer").value.trim();
+  if(!name) return alert("Customer Name ဖြည့်ပါ");
+  const order=await addDoc(collection(db,"orders"),{
+   customerName:name,
+   Product:"Cookie",
+   Price:5000,
+   Status:"pending",
+   customerUid:auth.currentUser.uid,
+   city:document.getElementById("city").value,
+   address:document.getElementById("address").value,
+   payment:document.getElementById("payment").value
+  });
+  document.getElementById("result").innerText="Order ID: "+order.id;
+ }catch(e){alert(e.message)}
+};
+
+window.adminLogin=async()=>{
+ try{
+  await signInWithEmailAndPassword(auth,
+   document.getElementById("email").value,
+   document.getElementById("password").value);
+  const orders=await getDocs(collection(db,"orders"));
+  let html="<h3>Orders</h3>";
+  orders.forEach(d=>{
+   const o=d.data();
+   html+=`<p>${o.customerName} - ${o.Product} - ${o.Status}</p>
+   <button onclick="changeStatus('${d.id}')">Complete Order</button>`;
+  });
+  document.getElementById("admin").innerHTML=html;
+ }catch(e){alert("Login Error: "+e.message)}
+};
+
+window.changeStatus=async(id)=>{
+ try{
+  await updateDoc(doc(db,"orders",id),{Status:"completed"});
+  alert("Order updated. Refresh Admin Login to see changes.");
+ }catch(e){alert(e.message)}
+};
+</script>
+</body>
+  </html>
