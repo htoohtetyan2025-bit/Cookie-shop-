@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="my">
 <head>
@@ -8,28 +9,42 @@
 body{font-family:Arial;background:#fff4e6;text-align:center;padding:20px}
 .card{background:white;padding:20px;border-radius:15px;max-width:400px;margin:auto}
 input,select,button{width:100%;padding:12px;margin:8px 0;box-sizing:border-box}
-button{background:#9b542b;color:white;border:0;border-radius:8px}
+button{background:#9b542b;color:white;border:0;border-radius:8px;cursor:pointer}
+.cookie{font-size:65px}
+.total{font-size:20px;font-weight:bold;color:#9b542b}
+.order{background:#fff4e6;padding:12px;margin:10px 0;border-radius:10px}
 </style>
 </head>
 <body>
 <div class="card">
 <h1>🍪 Cookie Shop</h1>
+<div class="cookie">🍪</div>
 <h2>Cookie</h2>
-<p>Price: 5,000 Ks</p>
+<p>Price: 5,000 Ks / 1 Cookie</p>
 <p>Cooking: 5 seconds</p>
 <p>Delivery: 10–15 minutes</p>
 
+<label>Cookie အရေအတွက်</label>
+<input id="quantity" type="number" min="1" max="99"
+value="1" oninput="updateTotal()">
+
+<p class="total" id="total">စုစုပေါင်း: 5,000 Ks</p>
+
 <input id="customer" placeholder="Customer Name">
+
 <select id="city">
-<option>Yangon</option>
-<option>Myingyan</option>
+<option value="Yangon">Yangon</option>
+<option value="Myingyan">Myingyan</option>
 </select>
+
 <input id="address" placeholder="Delivery Address">
+
 <select id="payment">
-<option>Cash</option>
-<option>Wave Pay</option>
-<option>KBZ Pay</option>
+<option value="Cash">Cash</option>
+<option value="Wave Pay">Wave Pay</option>
+<option value="KBZ Pay">KBZ Pay</option>
 </select>
+
 <button onclick="orderCookie()">Order Now</button>
 <p id="result"></p>
 
@@ -44,13 +59,20 @@ button{background:#9b542b;color:white;border:0;border-radius:8px}
 <script type="module">
 import {initializeApp} from
 "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import {getAuth,signInAnonymously,signInWithEmailAndPassword}
-from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import {getFirestore,collection,addDoc,getDocs,updateDoc,doc}
-from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+import {
+getAuth,signInAnonymously,signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+import {
+getFirestore,collection,addDoc,getDocs,
+updateDoc,doc
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const UNIT_PRICE = 5000;
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB4jOmIYQpWA6NH-JNkmc6ZLSl1nYvR5BA",
+  apiKey: "ဒီနေရာမှာ Firebase API Key အမှန်ထည့်ပါ",
   authDomain: "cookie-shop-adfc2.firebaseapp.com",
   projectId: "cookie-shop-adfc2",
   storageBucket: "cookie-shop-adfc2.firebasestorage.app",
@@ -58,53 +80,117 @@ const firebaseConfig = {
   appId: "1:499113828747:web:e26c88ded5a4ceea0a0f8e"
 };
 
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-signInAnonymously(auth).catch(e=>console.log(e));
+const authReady = signInAnonymously(auth);
 
-window.orderCookie=async()=>{
- try{
-  if(!auth.currentUser) throw new Error("Please wait and try again");
-  const name=document.getElementById("customer").value.trim();
+function getQuantity(){
+  const input = document.getElementById("quantity");
+  let qty = Math.floor(Number(input.value) || 1);
+  qty = Math.max(1, Math.min(99, qty));
+  input.value = qty;
+  return qty;
+}
+
+window.updateTotal = () => {
+  const qty = getQuantity();
+  const total = qty * UNIT_PRICE;
+  document.getElementById("total").innerText =
+    "စုစုပေါင်း: " + total.toLocaleString("en-US") + " Ks";
+};
+
+function escapeHTML(value){
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  })[char]);
+}
+
+window.orderCookie = async () => {
+ try {
+  await authReady;
+  if(!auth.currentUser) throw new Error("Please try again.");
+
+  const name = document.getElementById("customer").value.trim();
   if(!name) return alert("Customer Name ဖြည့်ပါ");
-  const order=await addDoc(collection(db,"orders"),{
-   customerName:name,
-   Product:"Cookie",
-   Price:5000,
-   Status:"pending",
-   customerUid:auth.currentUser.uid,
-   city:document.getElementById("city").value,
-   address:document.getElementById("address").value,
-   payment:document.getElementById("payment").value
+
+  const qty = getQuantity();
+  const total = qty * UNIT_PRICE;
+
+  const order = await addDoc(collection(db,"orders"),{
+   customerName: name,
+   Product: "Cookie",
+   Quantity: qty,
+   Price: total,
+   Status: "pending",
+   customerUid: auth.currentUser.uid,
+   city: document.getElementById("city").value,
+   address: document.getElementById("address").value,
+   payment: document.getElementById("payment").value
   });
-  document.getElementById("result").innerText="Order ID: "+order.id;
- }catch(e){alert(e.message)}
+
+  document.getElementById("result").innerText =
+   "Order အောင်မြင်ပါပြီ!\nOrder ID: " + order.id +
+   "\nCookie: " + qty + " ခု" +
+   "\nစုစုပေါင်း: " + total.toLocaleString("en-US") + " Ks";
+
+ } catch(e) {
+  alert("Order Error: " + e.message);
+ }
 };
 
-window.adminLogin=async()=>{
- try{
-  await signInWithEmailAndPassword(auth,
+window.adminLogin = async () => {
+ try {
+  await signInWithEmailAndPassword(
+   auth,
    document.getElementById("email").value,
-   document.getElementById("password").value);
-  const orders=await getDocs(collection(db,"orders"));
-  let html="<h3>Orders</h3>";
-  orders.forEach(d=>{
-   const o=d.data();
-   html+=`<p>${o.customerName} - ${o.Product} - ${o.Status}</p>
-   <button onclick="changeStatus('${d.id}')">Complete Order</button>`;
+   document.getElementById("password").value
+  );
+
+  const orders = await getDocs(collection(db,"orders"));
+  let html = "<h3>Customer Orders</h3>";
+
+  orders.forEach(d => {
+   const o = d.data();
+   html += `
+    <div class="order">
+     <b>Customer:</b> ${escapeHTML(o.customerName)}<br>
+     <b>Product:</b> ${escapeHTML(o.Product)}<br>
+     <b>Quantity:</b> ${Number(o.Quantity || 1)} ခု<br>
+     <b>Total:</b> ${Number(o.Price || 0).toLocaleString("en-US")} Ks<br>
+     <b>City:</b> ${escapeHTML(o.city)}<br>
+     <b>Address:</b> ${escapeHTML(o.address)}<br>
+     <b>Payment:</b> ${escapeHTML(o.payment)}<br>
+     <b>Status:</b> ${escapeHTML(o.Status)}
+     <button onclick="changeStatus('${d.id}')">
+      Complete Order
+     </button>
+    </div>`;
   });
-  document.getElementById("admin").innerHTML=html;
- }catch(e){alert("Login Error: "+e.message)}
+
+  document.getElementById("admin").innerHTML = html;
+
+ } catch(e) {
+  alert("Login Error: " + e.message);
+ }
 };
 
-window.changeStatus=async(id)=>{
- try{
-  await updateDoc(doc(db,"orders",id),{Status:"completed"});
-  alert("Order updated. Refresh Admin Login to see changes.");
- }catch(e){alert(e.message)}
+window.changeStatus = async (id) => {
+ try {
+  await updateDoc(doc(db,"orders",id),{
+   Status: "completed"
+  });
+  alert("Order updated!");
+  await window.adminLogin();
+ } catch(e) {
+  alert(e.message);
+ }
 };
 </script>
 </body>
-  </html>
+</html>
